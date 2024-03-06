@@ -1,0 +1,83 @@
+---
+title: "Tugas Individu Analisis Regresi"
+author: "Nabiil Fauzaan-G1401221007"
+date: "2024-03-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+##Tugas Individu TPC Kuliah
+##Nabiil Fauzaan (G1401221007)
+
+
+library(readxl)
+library(tidyverse)
+library(ggridges)
+library(GGally)
+library(plotly)
+library(dplyr)
+library(lmtest)
+library(stats)
+
+#DATA
+data <- read_xlsx("C:/Users/NHQEN/OneDrive/Documents/Data Tugas TPC.xlsx")
+data
+
+#EKSPLORASI DATA
+plot(x = data$X, y = data$Y) #Hasil Scatter plot menunjukkan Y dan X tidak berhubungan linier
+
+#UJI KENORMALAN
+qqnorm(data$Y)
+qqline(data$Y, col = "red") 
+shapiro.test(data$Y) #Hasil menyebar normal berdasarkan hasil test yang lebih dari 0.05 walaupun qqplot menunjukkan asumsi bahwa data tersebut tidak menyebar normal
+
+#DEKLARASI MODEL REGRESI
+model_lm <- lm(formula = Y ~ X, data = data)
+summary(model_lm)
+model_lm
+
+#AUTOKORELASI
+acf(model_lm$residuals)
+dwtest(model_lm) #Dalam gambar ACF, autokorelasi pada lag 1 adalah 0.5 dan pada lag 2 adalah 0.4. Kedua nilai tersebut melebihi batas kepercayaan 95%, menandakan bahwa autokorelasi pada lag 1 dan 2 signifikan. Ini mengindikasikan ketidakpenuhan asumsi Gauss-Markov, khususnya asumsi non-autokorelasi. Hasil p-test dari Uji Durbin-Watson juga menunjukkan nilai kurang dari 0.05, memperkuat temuan tersebut.
+
+#UJI HOMOSKEDASTISITAS
+plot(model_lm, which = 1) #Ragam sisaan cenderung meningkat seiring dengan nilai prediksi yang memiliki arti bahwa terjadi homoskedastisitas
+
+#TRANSFORMASI WLS
+resid_abs <- abs(model_lm$residuals)
+fitted_val <- model_lm$fitted.values
+fit <- lm(resid_abs ~ fitted_val, data)
+data.weights <- 1 / fit$fitted.values^2
+data.weights
+plot(data.weights)
+model_weighted <- lm(Y~X, data = data, weights = data.weights)
+plot(model_weighted)
+summary(model_weighted) #WLS belum efektif karena belum memenuhi asumsi Gauss-Markov
+
+#TRANSFORMASI AKAR PADA x, y, ATAU X DAN Y
+newdata <- data %>%
+  mutate(y = sqrt(Y)) %>%
+  mutate(x = sqrt(X))
+model_sqrtx <- lm(y ~ X, data = newdata)
+plot(x = newdata$X, y = newdata$y)
+plot(model_sqrtx)
+
+summary(model_sqrtx)
+
+#UJI AUTOKORELASI MODEL REGRESI TRANSFORMASI
+dwtest(model_sqrtx)
+model_sqrt <- lm(y ~ x, data = newdata)
+plot(x = newdata$x, y = newdata$y)
+plot(model_sqrt)
+summary(model_sqrt) #Dengan nilai DW yang rendah dan p-value yang signifikan, hasil tes Durbin-Watson menunjukkan adanya autokorelasi positif. Tes Durbin-Watson di atas membuktikan bahwa masih terdapat autokorelasi, ditandai dengan p-value yang kurang dari 0,05.
+
+#UJI AUTOKORELASI MODEL REGRESI
+dwtest(model_sqrt)
+
+##KESIMPULAN
+#Nilai p yang lebih besar dari 0.05 menunjukkan bahwa tidak ada bukti yang cukup untuk menolak hipotesis nol, yang menyatakan bahwa tidak ada autokorelasi. Dari hasil transformasi tersebut, dapat disimpulkan bahwa transformasi akar Y membuat persamaan regresi menjadi lebih efektif. Model regresi setelah transformasi dinyatakan sebagai: \[ Y^* = 8.71245 - 0.81339X^* + e \]\[ Y^* = \sqrt{Y} \]\[ X^* = \sqrt{X} \]. Dengan melakukan transformasi balik, kita mendapatkan: \[ Y = (8.71245 - 0.81339 X^{\frac{1}{2}})^2 + e \]. Interpretasi model menunjukkan bahwa Y berkorelasi terbalik dengan akar kuadrat dari X, dengan hubungan yang bersifat kuadratik. Semakin besar nilai akar kuadrat dari X, semakin kecil rata-rata nilai Y, dengan tingkat penurunan yang semakin meningkat. Puncak kurva menunjukkan nilai rata-rata maksimum Y untuk nilai tertentu dari X. Konstanta 8.71245 mewakili nilai Y ketika X sama dengan 0. Koefisien -0.81339 merupakan koefisien regresi untuk variabel X. Nilai negatif menunjukkan hubungan terbalik antara Y dan akar kuadrat dari X. Dengan kata lain, semakin besar akar kuadrat dari X, semakin kecil nilai Y. Pangkat dua pada koefisien regresi menunjukkan bahwa hubungan antara Y dan X bersifat kuadratik. Ini berarti perubahan Y tidak proporsional dengan perubahan X, melainkan berubah dengan tingkat peningkatan yang semakin tinggi.
+```
+
